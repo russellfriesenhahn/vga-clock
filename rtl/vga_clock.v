@@ -5,12 +5,47 @@ module vga_clock (
     input wire adj_hrs,
     input wire adj_min,
     input wire adj_sec,
+    input wire SPI_clk,
+    input wire SPI_csb,
+    input wire SPI_copi,
+    output wire SPI_cipo,
     output wire hsync,
     output wire vsync,
     output wire [5:0] rrggbb
     );
 
     wire reset = !reset_n;
+
+    wire [7:0] spi_word;
+    wire       spi_word_valid;
+    wire       cmdWrite;
+    wire       cmdRead;
+    wire [7:0] cmdAddr;
+    wire [7:0] cmdWriteData;
+
+    spi1 spi1_ (
+        .Clk(clk),
+        .Rst(reset),
+        .SPI_clk(SPI_clk),
+        .SPI_csb(SPI_csb),
+        .SPI_copi(SPI_copi),
+        .SPI_cipo(SPI_cipo),
+        .SPI_CPOL(1'b0),
+        .SPI_CPHA(1'b0),
+        .SPI_reg(spi_word),
+        .SPI_reg_valid(spi_word_valid)
+    );
+
+    cmdProc cmdProc_ (
+        .Clk(clk),
+        .Rst(reset),
+        .Data(spi_word),
+        .DataValid(spi_word_valid),
+        .CmdWrite(cmdWrite),
+        .CmdRead(cmdRead),
+        .CmdAddr(cmdAddr),
+        .CmdWriteData(cmdWriteData)
+    );
 
     reg [3:0] sec_u;
     reg [2:0] sec_d;
