@@ -55,8 +55,23 @@ module vga_clock (
     reg [1:0] hrs_d;
     reg [25:0] sec_counter;
 
+    localparam LOAD = 0;
+    localparam ADJ_SEC_PULSE = 1;
+    localparam ADJ_MIN_PULSE = 2;
+    localparam ADJ_HRS_PULSE = 3;
+
+    reg [7:0] csr;
+    reg [7:0] sec_counter_reg0;
+    reg [7:0] sec_counter_reg1;
+    reg [7:0] sec_counter_reg2;
+    reg [7:0] sec_counter_reg3;
+    reg [7:0] sec_reg;
+    reg [7:0] min_reg;
+    reg [7:0] hrs_reg;
+
     always @(posedge px_clk) begin
         if(reset) begin
+            csr <= 0;
             sec_u <= 0;
             sec_d <= 0;
             min_u <= 0;
@@ -66,6 +81,7 @@ module vga_clock (
             sec_counter <= 0;
             color_offset <= 0;
         end else begin
+            csr <= 0;
             if(sec_u == 10) begin
                 sec_u <= 0;
                 sec_d <= sec_d + 1;
@@ -100,14 +116,39 @@ module vga_clock (
             end
 
             // adjustment buttons
-            if(adj_sec_pulse)
+            if(adj_sec_pulse | csr[ADJ_SEC_PULSE])
                 sec_u <= sec_u + 1;
-            if(adj_min_pulse) begin
+            if(adj_min_pulse | csr[ADJ_MIN_PULSE]) begin
                 min_u <= min_u + 1;
                 color_offset <= color_offset + 1;
             end
-            if(adj_hrs_pulse)
+            if(adj_hrs_pulse | csr[ADJ_HRS_PULSE])
                 hrs_u <= hrs_u + 1;
+
+            if(cmdWrite == 1'b1) begin
+                case(cmdAddr)
+                    8'h00: csr <= cmdWriteData;
+                    8'h01: sec_counter_reg0 <= cmdWriteData;
+                    8'h02: sec_counter_reg1 <= cmdWriteData;
+                    8'h03: sec_counter_reg2 <= cmdWriteData;
+                    8'h04: sec_counter_reg3 <= cmdWriteData;
+                    8'h05: sec_reg <= cmdWriteData;
+                    8'h06: min_reg <= cmdWriteData;
+                    8'h07: hrs_reg <= cmdWriteData;
+                endcase
+            end
+            if(csr[LOAD]) begin
+                sec_u <= sec_reg[3:0];
+                sec_d <= sec_reg[6:4];
+                min_u <= min_reg[3:0];
+                min_d <= min_reg[6:4];
+                hrs_u <= hrs_reg[3:0];
+                hrs_d <= hrs_reg[5:4];
+                sec_counter[7:0] <= sec_counter_reg0;
+                sec_counter[15:8] <= sec_counter_reg1;
+                sec_counter[23:16] <= sec_counter_reg2;
+                sec_counter[25:24] <= sec_counter_reg3[1:0];
+            end
         end
     end
 
